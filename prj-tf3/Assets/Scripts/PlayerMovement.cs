@@ -5,7 +5,6 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     float playerHeight = 2f;
-    public Crouch crouch;
 
     [SerializeField] Transform orientation;
 
@@ -28,7 +27,6 @@ public class PlayerMovement : MonoBehaviour
     [Header("Keybinds")]
     [SerializeField] KeyCode jumpKey = KeyCode.Space;
     [SerializeField] KeyCode sprintKey = KeyCode.LeftShift;
-    [SerializeField] KeyCode crouchKey = KeyCode.LeftControl;
 
     [Header("Drag")]
     [SerializeField] float groundDrag = 6f;
@@ -89,18 +87,13 @@ public class PlayerMovement : MonoBehaviour
         {
             Jump();
         }
-        else if (Input.GetKeyDown(jumpKey) && doubleJump < 1)
+        else if (Input.GetKeyDown(jumpKey) && doubleJump < maxDoubleJump && !isGrounded)
         {
             Jump();
-            doubleJump = 1;
+            doubleJump++;
         }
 
         slopeMoveDirection = Vector3.ProjectOnPlane(moveDirection, slopeHit.normal);
-
-        if (Input.GetKeyDown(crouchKey) && isGrounded && moveSpeed <= sprintSpeed)
-        {
-            crouch.slide();
-        }
     }
 
     void MyInput()
@@ -115,7 +108,6 @@ public class PlayerMovement : MonoBehaviour
     {
         rb.velocity = new Vector3(rb.velocity.x, 0, rb.velocity.z);
         rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
-        doubleJump = 0;
 
     }
 
