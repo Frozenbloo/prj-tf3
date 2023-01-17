@@ -14,7 +14,7 @@
   "dependencies": {
     "com.unity.modules.director": "0.0.1-security",
     "com.unity.modules.animation": "0.0.1-security",
-    "com.unity.modules.audio": "1.0.0",
+    "com.unity.modules.audio": "0.0.1-security",
     "com.unity.modules.particlesystem": "1.0.0"
   },
   "relatedPackages": {
