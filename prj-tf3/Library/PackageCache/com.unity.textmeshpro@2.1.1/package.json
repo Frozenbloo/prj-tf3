@@ -13,7 +13,7 @@
   ],
   "category": "Text Rendering",
   "dependencies": {
-    "com.unity.ugui": "1.0.0"
+    "com.unity.ugui": "0.0.1-security"
   },
   "repository": {
     "url": "https://github.cds.internal.unity3d.com/unity/com.unity.textmeshpro.git",
