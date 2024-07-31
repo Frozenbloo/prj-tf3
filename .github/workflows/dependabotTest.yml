@@ -1,0 +1,85 @@
+name: Dependabot Check
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  dependabot-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Fetch Dependabot alerts
+      id: fetch_alerts
+      run: |
+        curl -H "Accept: application/vnd.github.v3+json" \
+             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+             https://api.github.com/repos/${{ github.repository }}/dependabot/alerts \
+             > dependabot-alerts.json
+
+    - name: Extract dependency changes
+      id: extract_changes
+      run: |
+        git fetch origin main
+        git diff origin/main --name-only > changed_files.txt
+        if grep -qE 'package.json|package-lock.json' changed_files.txt; then
+          echo "true" > dep_changed.txt
+        else
+          echo "false" > dep_changed.txt
+        fi
+
+    - name: Compare dependencies
+      if: steps.extract_changes.outputs.dep_changed == 'true'
+      id: compare_deps
+      run: |
+        fixed_issues=""
+        new_issues=""
+        for alert in $(jq -c '.[]' dependabot-alerts.json); do
+          dep=$(echo "$alert" | jq -r '.security_advisory.ghsa_id')
+          summary=$(echo "$alert" | jq -r '.security_advisory.summary')
+          if git diff origin/main --name-only | grep -qE 'package.json|package-lock.json'; then
+            old_version=$(git show origin/main:package.json | jq -r ".dependencies[\"$dep\"]")
+            new_version=$(jq -r ".dependencies[\"$dep\"]" package.json)
+            if [ "$old_version" != "$new_version" ]; then
+              fixed_issues="${fixed_issues}| ${dep} | ${new_version} | ✔️ |\n"
+            else
+              new_issues="${new_issues}| ${dep} | ${new_version} | ❌ |\n"
+            fi
+          fi
+        done
+        echo "fixed_issues=${fixed_issues}" >> $GITHUB_ENV
+        echo "new_issues=${new_issues}" >> $GITHUB_ENV
+
+    - name: Create comment body
+      id: create_body
+      run: |
+        if [ -n "$fixed_issues" ] || [ -n "$new_issues" ]; then
+          body="### Dependabot Check Results\n\n"
+          body+="| Dependency | Version | Status |\n"
+          body+="|------------|---------|--------|\n"
+          if [ -n "$fixed_issues" ]; then
+            body+="${fixed_issues}\n"
+          else
+            body+="| None | N/A | N/A |\n"
+          fi
+          body+="\n**New Issues:**\n"
+          body+="| Dependency | Version | Status |\n"
+          body+="|------------|---------|--------|\n"
+          if [ -n "$new_issues" ]; then
+            body+="${new_issues}\n"
+          else
+            body+="| None | N/A | N/A |\n"
+          fi
+          echo "$body" > comment_body.txt
+        else
+          echo "No dependency changes detected." > comment_body.txt
+        fi
+
+    - name: Post comment on PR
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        path: comment_body.txt
