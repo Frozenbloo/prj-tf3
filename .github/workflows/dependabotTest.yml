@@ -75,7 +75,7 @@ jobs:
     - name: Create comment body
       id: create_body
       run: |
-        body="### Dependabot Check Results<br><br>"
+        body="**Dependabot Check Results**<br><br>"
         body+="| Dependency | Version | Status |<br>"
         body+="| ---------- | ------- | ------ |<br>"
 
