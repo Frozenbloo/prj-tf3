@@ -9,9 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # Step 1: Checkout the pull request code
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v2
 
+    # Step 2: Fetch Dependabot alerts from GitHub API and save to dependabot-alerts.json
     - name: Fetch Dependabot alerts
       id: fetch_alerts
       run: |
@@ -20,64 +22,115 @@ jobs:
              https://api.github.com/repos/${{ github.repository }}/dependabot/alerts \
              > dependabot-alerts.json
 
-    - name: Extract dependency changes
-      id: extract_changes
+    # Step 3: Check if dependency files (package.json, package-lock.json, or yarn.lock) have changed in the PR
+    - name: Check if dependencies changed
+      id: check_deps
       run: |
+        # Fetch the main branch to compare with
         git fetch origin main
-        git diff origin/main --name-only > changed_files.txt
-        if grep -qE 'package.json|package-lock.json' changed_files.txt; then
-          echo "true" > dep_changed.txt
+        
+        # List files changed in the PR
+        git diff --name-only origin/main > changed_files.txt
+        
+        # Check if any dependency files are changed
+        if grep -qE 'package.json|package-lock.json|yarn.lock' changed_files.txt; then
+          echo "dependencies_changed=true" >> $GITHUB_ENV
         else
-          echo "false" > dep_changed.txt
-        fi
+          echo "dependencies_changed=false" >> $GITHUB_ENV
 
-    - name: Compare dependencies
-      if: steps.extract_changes.outputs.dep_changed == 'true'
+    # Step 4: Compare dependencies and create a report if dependencies have changed
+    - name: Compare dependencies and create report
+      if: env.dependencies_changed == 'true'
       id: compare_deps
       run: |
         fixed_issues=""
         new_issues=""
-        for alert in $(jq -c '.[]' dependabot-alerts.json); do
-          dep=$(echo "$alert" | jq -r '.security_advisory.ghsa_id')
-          summary=$(echo "$alert" | jq -r '.security_advisory.summary')
-          if git diff origin/main --name-only | grep -qE 'package.json|package-lock.json'; then
-            old_version=$(git show origin/main:package.json | jq -r ".dependencies[\"$dep\"]")
-            new_version=$(jq -r ".dependencies[\"$dep\"]" package.json)
+        alerts=$(jq -c '.[]' dependabot-alerts.json)
+        
+        # Function to get dependencies from package.json
+        get_dependencies_from_package_json() {
+          jq -r '.dependencies, .devDependencies' package.json
+        }
+
+        # Function to get dependencies from yarn.lock
+        get_dependencies_from_yarn_lock() {
+          yarn list --json | jq -r '.data.trees[] | {name: .name, version: .version}'
+        }
+
+        # Compare dependencies in package.json
+        if git diff --name-only origin/main | grep -q 'package.json'; then
+          old_deps=$(get_dependencies_from_package_json <(git show origin/main:package.json))
+          new_deps=$(get_dependencies_from_package_json package.json)
+          
+          for alert in $alerts; do
+            dep=$(echo "$alert" | jq -r '.security_advisory.ghsa_id')
+            summary=$(echo "$alert" | jq -r '.security_advisory.summary')
+
+            old_version=$(echo "$old_deps" | jq -r ".${dep}")
+            new_version=$(echo "$new_deps" | jq -r ".${dep}")
+            
             if [ "$old_version" != "$new_version" ]; then
               fixed_issues="${fixed_issues}| ${dep} | ${new_version} | ✔️ |\n"
             else
               new_issues="${new_issues}| ${dep} | ${new_version} | ❌ |\n"
             fi
-          fi
-        done
+          done
+        fi
+
+        # Compare dependencies in yarn.lock
+        if git diff --name-only origin/main | grep -q 'yarn.lock'; then
+          old_deps=$(get_dependencies_from_yarn_lock <(git show origin/main:yarn.lock))
+          new_deps=$(get_dependencies_from_yarn_lock yarn.lock)
+
+          for alert in $alerts; do
+            dep=$(echo "$alert" | jq -r '.security_advisory.ghsa_id')
+            summary=$(echo "$alert" | jq -r '.security_advisory.summary')
+
+            old_version=$(echo "$old_deps" | jq -r ".[] | select(.name == \"$dep\") | .version")
+            new_version=$(echo "$new_deps" | jq -r ".[] | select(.name == \"$dep\") | .version")
+
+            if [ "$old_version" != "$new_version" ]; then
+              fixed_issues="${fixed_issues}| ${dep} | ${new_version} | ✔️ |\n"
+            else
+              new_issues="${new_issues}| ${dep} | ${new_version} | ❌ |\n"
+            fi
+          done
+        fi
+
+        # Set environment variables with the results
         echo "fixed_issues=${fixed_issues}" >> $GITHUB_ENV
         echo "new_issues=${new_issues}" >> $GITHUB_ENV
 
+    # Step 5: Create the comment body based on the comparison results
     - name: Create comment body
       id: create_body
       run: |
-        if [ -n "$fixed_issues" ] || [ -n "$new_issues" ]; then
-          body="### Dependabot Check Results\n\n"
-          body+="| Dependency | Version | Status |\n"
-          body+="|------------|---------|--------|\n"
-          if [ -n "$fixed_issues" ]; then
-            body+="${fixed_issues}\n"
-          else
-            body+="| None | N/A | N/A |\n"
-          fi
-          body+="\n**New Issues:**\n"
-          body+="| Dependency | Version | Status |\n"
-          body+="|------------|---------|--------|\n"
-          if [ -n "$new_issues" ]; then
-            body+="${new_issues}\n"
-          else
-            body+="| None | N/A | N/A |\n"
-          fi
-          echo "$body" > comment_body.txt
+        body="### Dependabot Check Results\n\n"
+        body+="| Dependency | Version | Status |\n"
+        body+="|------------|---------|--------|\n"
+        
+        # Add fixed issues to the comment
+        if [ -n "$fixed_issues" ]; then
+          body+="${fixed_issues}\n"
         else
-          echo "No dependency changes detected." > comment_body.txt
+          body+="| None | N/A | N/A |\n"
         fi
+        
+        body+="\n**New Issues:**\n"
+        body+="| Dependency | Version | Status |\n"
+        body+="|------------|---------|--------|\n"
+        
+        # Add new issues to the comment
+        if [ -n "$new_issues" ]; then
+          body+="${new_issues}\n"
+        else
+          body+="| None | N/A | N/A |\n"
+        fi
+        
+        # Save the comment body to a file
+        echo "$body" > comment_body.txt
 
+    # Step 6: Post the comment on the pull request
     - name: Post comment on PR
       uses: marocchino/sticky-pull-request-comment@v2
       with:
