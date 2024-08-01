@@ -32,6 +32,7 @@ jobs:
           echo "dependencies_changed=true" >> $GITHUB_ENV
         else
           echo "dependencies_changed=false" >> $GITHUB_ENV
+        fi
 
     # Step 4: Compare dependencies and create a report if dependencies have changed
     - name: Compare dependencies
