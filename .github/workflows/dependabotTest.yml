@@ -77,22 +77,22 @@ jobs:
       run: |
         body="### Dependabot Check Results<br><br>"
         body+="| Dependency | Version | Status |<br>"
-        body+="|------------|---------|--------|<br>"
+        body+="| ---------- | ------- | ------ |<br>"
 
         if [ -n "${{ env.fixed_issues }}" ]; then
           body+="${{ env.fixed_issues }}<br>"
         else
-          body+="|    None    |   N/A   |   N/A  |<br>"
+          body+="| None | N/A | N/A |<br>"
         fi
 
-        body+="\n**New Issues:**\n"
+        body+="<br><br>**New Issues:**<br>"
         body+="| Dependency | Version | Status |<br>"
-        body+="|------------|---------|--------|<br>"
+        body+="| ---------- | ------ | ------ |<br>"
 
         if [ -n "${{ env.new_issues }}" ]; then
           body+="${{ env.new_issues }}<br>"
         else
-          body+="|    None    |   N/A   |   N/A   |<br>"
+          body+="| None | N/A | N/A |<br>"
         fi
 
         echo "$body" > comment_body.txt
