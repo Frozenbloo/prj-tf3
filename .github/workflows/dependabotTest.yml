@@ -75,24 +75,37 @@ jobs:
     - name: Create comment body
       id: create_body
       run: |
-        body="**Dependabot Check Results**<br><br>"
-        body+="| Dependency | Version | Status |<br>"
-        body+="| ---------- | ------- | ------ |<br>"
+        body="### **Dependabot Check Results**
+        
+        "
+        body+="| Dependency | Version | Status |
+        "
+        body+="| ---------- | ------- | ------ |
+        "
 
         if [ -n "${{ env.fixed_issues }}" ]; then
-          body+="${{ env.fixed_issues }}<br>"
+          body+="${{ env.fixed_issues }}
+          "
         else
-          body+="| None | N/A | N/A |<br>"
+          body+="| None | N/A | N/A |
+          "
         fi
 
-        body+="<br><br>**New Issues:**<br>"
-        body+="| Dependency | Version | Status |<br>"
-        body+="| ---------- | ------ | ------ |<br>"
+        body+="
+        
+        **New Issues:**
+        "
+        body+="| Dependency | Version | Status |
+        "
+        body+="| ---------- | ------ | ------ |
+        "
 
         if [ -n "${{ env.new_issues }}" ]; then
-          body+="${{ env.new_issues }}<br>"
+          body+="${{ env.new_issues }}
+          "
         else
-          body+="| None | N/A | N/A |<br>"
+          body+="| None | N/A | N/A |
+          "
         fi
 
         echo "$body" > comment_body.txt
