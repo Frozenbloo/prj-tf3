@@ -30,8 +30,6 @@ jobs:
         else
           echo "false" > dep_changed.txt
         fi
-      outputs:
-        dep_changed: ${{ steps.extract_changes.outputs.dep_changed }}
 
     - name: Compare dependencies
       if: steps.extract_changes.outputs.dep_changed == 'true'
