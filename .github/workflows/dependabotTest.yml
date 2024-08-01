@@ -10,13 +10,15 @@ permissions:
   pull-requests: write
 
 jobs:
-  dependabot-check:
+  dependabot-checks:
+    name: Dependabot Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
     # Step 1: Checkout the pull request code
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     # Step 2: Fetch Dependabot alerts from GitHub API and save to dependabot-alerts.json
     - name: Fetch Dependabot alerts
@@ -31,13 +33,10 @@ jobs:
     - name: Check if dependencies changed
       id: check_deps
       run: |
-        # Fetch the main branch to compare with
         git fetch origin main
 
-        # List files changed in the PR
         git diff --name-only origin/main > changed_files.txt
 
-        # Check if any dependency files are changed
         if grep -qE 'package.json|package-lock.json|yarn.lock' changed_files.txt; then
           echo "dependencies_changed=true" >> $GITHUB_ENV
         else
@@ -52,17 +51,14 @@ jobs:
         new_issues=""
         alerts=$(jq -c '.[]' dependabot-alerts.json)
 
-        # Function to get dependencies from package.json
         get_dependencies_from_package_json() {
           jq -r '.[].version' package.json
         }
 
-        # Function to get dependencies from yarn.lock
         get_dependencies_from_yarn_lock() {
           yarn list --json | jq -r '.data.trees[] | {name: .name, version: .version}'
         }
 
-        # Compare dependencies in package.json and package-lock.json
         if git diff --name-only origin/main | grep -qE 'package.json|package-lock.json'; then
           old_deps=$(git show origin/main:package.json | jq -r '.[].version')
           new_deps=$(jq -r '.[].version' package.json)
@@ -82,7 +78,6 @@ jobs:
           done
         fi
 
-        # Compare dependencies in yarn.lock
         if git diff --name-only origin/main | grep -q 'yarn.lock'; then
           old_deps=$(git show origin/main:yarn.lock | yarn list --json | jq -r '.data.trees[] | {name: .name, version: .version}')
           new_deps=$(yarn list --json | jq -r '.data.trees[] | {name: .name, version: .version}')
@@ -102,7 +97,6 @@ jobs:
           done
         fi
 
-        # Set environment variables with the results
         echo "fixed_issues=${fixed_issues}" >> $GITHUB_ENV
         echo "new_issues=${new_issues}" >> $GITHUB_ENV
 
