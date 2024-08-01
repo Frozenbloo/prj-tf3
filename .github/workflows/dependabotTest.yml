@@ -51,9 +51,9 @@ jobs:
             old_version=$(git show origin/main:package.json | jq -r ".dependencies[\"$dep\"]")
             new_version=$(jq -r ".dependencies[\"$dep\"]" package.json)
             if [ "$old_version" != "$new_version" ]; then
-              fixed_issues="${fixed_issues}| ${dep} | ${new_version} | ✔️ |\n"
+              fixed_issues="${fixed_issues}| ${dep} | ${new_version} | ✔️ |<br>"
             else
-              new_issues="${new_issues}| ${dep} | ${new_version} | ❌ |\n"
+              new_issues="${new_issues}| ${dep} | ${new_version} | ❌ |<br>"
             fi
           fi
 
@@ -61,9 +61,9 @@ jobs:
             old_version=$(git show origin/main:yarn.lock | grep "\"$dep\"")
             new_version=$(yarn list --pattern "$dep" --json | jq -r ".data.trees[] | select(.name == \"$dep\") | .version")
             if [ "$old_version" != "$new_version" ]; then
-              fixed_issues="${fixed_issues}| ${dep} | ${new_version} | ✔️ |\n"
+              fixed_issues="${fixed_issues}| ${dep} | ${new_version} | ✔️ |<br>"
             else
-              new_issues="${new_issues}| ${dep} | ${new_version} | ❌ |\n"
+              new_issues="${new_issues}| ${dep} | ${new_version} | ❌ |<br>"
             fi
           fi
         done
@@ -75,24 +75,24 @@ jobs:
     - name: Create comment body
       id: create_body
       run: |
-        body="### Dependabot Check Results\n\n"
-        body+="| Dependency | Version | Status |\n"
-        body+="|------------|---------|--------|\n"
+        body="### Dependabot Check Results<br><br>"
+        body+="| Dependency | Version | Status |<br>"
+        body+="|------------|---------|--------|<br>"
 
         if [ -n "${{ env.fixed_issues }}" ]; then
-          body+="${{ env.fixed_issues }}\n"
+          body+="${{ env.fixed_issues }}<br>"
         else
-          body+="| None | N/A | N/A |\n"
+          body+="|    None    |   N/A   |   N/A  |<br>"
         fi
 
         body+="\n**New Issues:**\n"
-        body+="| Dependency | Version | Status |\n"
-        body+="|------------|---------|--------|\n"
+        body+="| Dependency | Version | Status |<br>"
+        body+="|------------|---------|--------|<br>"
 
         if [ -n "${{ env.new_issues }}" ]; then
-          body+="${{ env.new_issues }}\n"
+          body+="${{ env.new_issues }}<br>"
         else
-          body+="| None | N/A | N/A |\n"
+          body+="|    None    |   N/A   |   N/A   |<br>"
         fi
 
         echo "$body" > comment_body.txt
