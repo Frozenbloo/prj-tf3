@@ -63,7 +63,7 @@ jobs:
           new_deps=$(get_dependencies_from_package_json package.json)
 
           for alert in $alerts; do
-            dep=$(echo "$alert" | jq -r '.security_advisory.ghsa_id')
+            dep=$(echo "$alert" | jq -r '.dependency.name')
             summary=$(echo "$alert" | jq -r '.security_advisory.summary')
 
             old_version=$(echo "$old_deps" | jq -r ".${dep}")
@@ -83,7 +83,7 @@ jobs:
           new_deps=$(get_dependencies_from_yarn_lock yarn.lock)
 
           for alert in $alerts; do
-            dep=$(echo "$alert" | jq -r '.security_advisory.ghsa_id')
+            dep=$(echo "$alert" | jq -r '.dependency.name')
             summary=$(echo "$alert" | jq -r '.security_advisory.summary')
 
             old_version=$(echo "$old_deps" | jq -r ".[] | select(.name == \"$dep\") | .version")
