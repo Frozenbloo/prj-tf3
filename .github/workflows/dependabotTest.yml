@@ -26,20 +26,20 @@ jobs:
 
     # Step 3: Check if dependency files (package.json, package-lock.json, or yarn.lock) have changed in the PR
     - name: Check if dependencies changed
-      id: check_deps
+      id: extract_changes
       run: |
         git fetch origin main
 
         git diff --name-only origin/main > changed_files.txt
 
         if grep -qE 'package.json|package-lock.json|yarn.lock' changed_files.txt; then
-          echo "dependencies_changed=true" >> $GITHUB_ENV
+          echo "true" > dep_changed.txt
         else
-          echo "dependencies_changed=false" >> $GITHUB_ENV
+          echo "false" > dep_changed.txt
 
     # Step 4: Compare dependencies and create a report if dependencies have changed
     - name: Compare dependencies and create report
-      if: env.dependencies_changed == 'true'
+      if: steps.extract_changes.outputs.dep_changed == 'true'
       id: compare_deps
       run: |
         fixed_issues=""
